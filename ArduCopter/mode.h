@@ -804,6 +804,9 @@ public:
 
     bool requires_terrain_failsafe() const override { return true; }
 
+    // added
+    void set_accel(float accel_x_cmss, float accel_y_cmss, float accel_z_cmss, float yaw);
+
     void set_angle(const Quaternion &q, float climb_rate_cms_or_thrust, bool use_yaw_rate, float yaw_rate_rads, bool use_thrust);
     bool set_destination(const Vector3f& destination, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false, bool terrain_alt = false);
     bool set_destination(const Location& dest_loc, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false);
@@ -824,6 +827,10 @@ public:
 
     void angle_control_start();
     void angle_control_run();
+
+    // added
+    void accel_control_start();
+    void accel_control_run();
 
 protected:
 

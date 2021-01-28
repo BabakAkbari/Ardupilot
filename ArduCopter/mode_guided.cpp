@@ -1,4 +1,8 @@
+#include <AP_AHRS/AP_AHRS.h>
+#include <AP_HAL/AP_HAL.h>
+#include <AP_InertialNav/AP_InertialNav.h>     // Inertial Navigation library
 #include "Copter.h"
+
 
 #if MODE_GUIDED_ENABLED == ENABLED
 
@@ -17,7 +21,13 @@ static Vector3f guided_pos_target_cm;       // position target (used by posvel c
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and posvel controller)
 static uint32_t posvel_update_time_ms;      // system time of last target update to posvel controller (i.e. position and velocity update)
 static uint32_t vel_update_time_ms;         // system time of last target update to velocity controller
+class DummyVehicle {
+public:
+    AP_AHRS_NavEKF ahrs{AP_AHRS_NavEKF::FLAG_ALWAYS_USE_EKF};
+};
 
+static DummyVehicle vehicle;
+AP_AHRS_NavEKF &_ahrs = vehicle.ahrs;
 struct {
     uint32_t update_time_ms;
     float roll_cd;
@@ -29,6 +39,18 @@ struct {
     bool use_yaw_rate;
     bool use_thrust;
 } static guided_angle_state;
+// added
+struct {
+    uint32_t update_time_ms;
+    float roll_cd;
+    float pitch_cd;
+    float yaw_cd;
+    float yaw_rate_cds;
+    float climb_rate_cms;   // climb rate in cms.  Used if use_thrust is false
+    float thrust;           // thrust from -1 to 1.  Used if use_thrust is true
+    bool use_yaw_rate;
+    bool use_thrust;
+} static guided_accel_state;
 
 struct Guided_Limit {
     uint32_t timeout_ms;  // timeout (in seconds) from the time that guided is invoked
@@ -77,6 +99,11 @@ void ModeGuided::run()
     case Guided_Angle:
         // run angle controller
         angle_control_run();
+        break;
+    //added
+    case Guided_Accel:
+        // run accel controller
+        accel_control_run();
         break;
     }
  }
@@ -224,6 +251,34 @@ void ModeGuided::angle_control_start()
     guided_angle_state.climb_rate_cms = 0.0f;
     guided_angle_state.yaw_rate_cds = 0.0f;
     guided_angle_state.use_yaw_rate = false;
+
+    // pilot always controls yaw
+    auto_yaw.set_mode(AUTO_YAW_HOLD);
+}
+// added
+void ModeGuided::accel_control_start()
+{
+    // set guided_mode to velocity controller
+    guided_mode = Guided_Accel;
+
+    // set vertical speed and acceleration
+    pos_control->set_max_speed_z(wp_nav->get_default_speed_down(), wp_nav->get_default_speed_up());
+    pos_control->set_max_accel_z(wp_nav->get_accel_z());
+
+    // initialise position and desired velocity
+    if (!pos_control->is_active_z()) {
+        pos_control->set_alt_target_to_current_alt();
+        pos_control->set_desired_velocity_z(inertial_nav.get_velocity_z());
+    }
+
+    // initialise targets
+    guided_accel_state.update_time_ms = millis();
+    guided_accel_state.roll_cd = ahrs.roll_sensor;
+    guided_accel_state.pitch_cd = ahrs.pitch_sensor;
+    guided_accel_state.yaw_cd = ahrs.yaw_sensor;
+    guided_accel_state.climb_rate_cms = 0.0f;
+    guided_accel_state.yaw_rate_cds = 0.0f;
+    guided_accel_state.use_yaw_rate = false;
 
     // pilot always controls yaw
     auto_yaw.set_mode(AUTO_YAW_HOLD);
@@ -387,6 +442,50 @@ void ModeGuided::set_angle(const Quaternion &q, float climb_rate_cms_or_thrust, 
     copter.Log_Write_GuidedTarget(guided_mode,
                            Vector3f(guided_angle_state.roll_cd, guided_angle_state.pitch_cd, guided_angle_state.yaw_cd),
                            Vector3f(0.0f, 0.0f, climb_rate_cms_or_thrust));
+}
+//added
+void ModeGuided::set_accel(float accel_x_cmss, float accel_y_cmss, float accel_z_cmss, float yaw)
+{
+    // check we are in velocity control mode
+    if (guided_mode != Guided_Accel) {
+        accel_control_start();
+    }
+
+    float accel_right, accel_forward;
+
+    // rotate accelerations into body forward-right frame
+    // todo: this should probably be based on the desired heading not the current heading
+    accel_forward = accel_x_cmss * _ahrs.cos_yaw() + accel_y_cmss * _ahrs.sin_yaw();
+    accel_right = -accel_x_cmss * _ahrs.sin_yaw() + accel_y_cmss * _ahrs.cos_yaw();
+
+    // update angle targets that will be passed to stabilize controller
+    guided_accel_state.pitch_cd = atanf(-accel_forward / (GRAVITY_MSS * 100.0f)) * (18000.0f / M_PI);
+    float cos_pitch_target = cosf(guided_accel_state.pitch_cd * M_PI / 18000.0f);
+    guided_accel_state.roll_cd = atanf(accel_right * cos_pitch_target / (GRAVITY_MSS * 100.0f)) * (18000.0f / M_PI);
+    guided_accel_state.yaw_cd = yaw;
+    // // convert quaternion to euler angles
+    // q.to_euler(guided_angle_state.roll_cd, guided_angle_state.pitch_cd, guided_angle_state.yaw_cd);
+    // guided_angle_state.roll_cd = ToDeg(guided_angle_state.roll_cd) * 100.0f;
+    // guided_angle_state.pitch_cd = ToDeg(guided_angle_state.pitch_cd) * 100.0f;
+    // guided_angle_state.yaw_cd = wrap_180_cd(ToDeg(guided_angle_state.yaw_cd) * 100.0f);
+    // guided_angle_state.yaw_rate_cds = ToDeg(yaw_rate_rads) * 100.0f;
+    // guided_angle_state.use_yaw_rate = use_yaw_rate;
+
+    // guided_angle_state.use_thrust = use_thrust;
+    // if (use_thrust) {
+    //     guided_angle_state.thrust = climb_rate_cms_or_thrust;
+    //     guided_angle_state.climb_rate_cms = 0.0f;
+    // } else {
+    //     guided_angle_state.thrust = 0.0f;
+    //     guided_angle_state.climb_rate_cms = climb_rate_cms_or_thrust;
+    // }
+    guided_accel_state.climb_rate_cms = 0.0f;
+
+    guided_accel_state.update_time_ms = millis();
+
+    // log target
+    copter.Log_Write_GuidedTarget(guided_mode,Vector3f(guided_accel_state.roll_cd, guided_accel_state.pitch_cd, guided_accel_state.yaw_cd),
+                           Vector3f(0.0f, 0.0f, 0.0f));
 }
 
 // guided_takeoff_run - takeoff in guided mode
@@ -649,6 +748,85 @@ void ModeGuided::angle_control_run()
     // call position controller
     if (guided_angle_state.use_thrust) {
         attitude_control->set_throttle_out(guided_angle_state.thrust, true, copter.g.throttle_filt);
+    } else {
+        pos_control->set_alt_target_from_climb_rate_ff(climb_rate_cms, G_Dt, false);
+        pos_control->update_z_controller();
+    }
+}
+// added
+void ModeGuided::accel_control_run()
+{
+    // constrain desired lean angles
+    float roll_in = guided_accel_state.roll_cd;
+    float pitch_in = guided_accel_state.pitch_cd;
+    float total_in = norm(roll_in, pitch_in);
+    float angle_max = MIN(attitude_control->get_althold_lean_angle_max(), copter.aparm.angle_max);
+    if (total_in > angle_max) {
+        float ratio = angle_max / total_in;
+        roll_in *= ratio;
+        pitch_in *= ratio;
+    }
+
+    // wrap yaw request
+    float yaw_in = wrap_180_cd(guided_accel_state.yaw_cd);
+    // float yaw_rate_in = wrap_180_cd(guided_accel_state.yaw_rate_cds);
+
+    float climb_rate_cms = 0.0f;
+    // if (!guided_angle_state.use_thrust) {
+    //     // constrain climb rate
+    //     climb_rate_cms = constrain_float(guided_angle_state.climb_rate_cms, -fabsf(wp_nav->get_default_speed_down()), wp_nav->get_default_speed_up());
+
+    //     // get avoidance adjusted climb rate
+    //     climb_rate_cms = get_avoidance_adjusted_climbrate(climb_rate_cms);
+    // }
+
+    // check for timeout - set lean angles and climb rate to zero if no updates received for 3 seconds
+    uint32_t tnow = millis();
+    if (tnow - guided_accel_state.update_time_ms > GUIDED_ATTITUDE_TIMEOUT_MS) {
+        roll_in = 0.0f;
+        pitch_in = 0.0f;
+        climb_rate_cms = 0.0f;
+        // yaw_rate_in = 0.0f;
+        guided_accel_state.use_thrust = false;
+    }
+
+    // interpret positive climb rate or thrust as triggering take-off
+    const bool positive_thrust_or_climbrate = is_positive(guided_accel_state.use_thrust ? guided_accel_state.thrust : climb_rate_cms);
+    if (motors->armed() && positive_thrust_or_climbrate) {
+        copter.set_auto_armed(true);
+    }
+
+    // if not armed set throttle to zero and exit immediately
+    if (!motors->armed() || !copter.ap.auto_armed || (copter.ap.land_complete && !positive_thrust_or_climbrate)) {
+        make_safe_spool_down();
+        return;
+    }
+
+    // TODO: use get_alt_hold_state
+    // landed with positive desired climb rate, takeoff
+    if (copter.ap.land_complete && (guided_accel_state.climb_rate_cms > 0.0f)) {
+        zero_throttle_and_relax_ac();
+        motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+        if (motors->get_spool_state() == AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
+            set_land_complete(false);
+            set_throttle_takeoff();
+        }
+        return;
+    }
+
+    // set motors to full range
+    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+
+    // call attitude controller
+    // if (guided_angle_state.use_yaw_rate) {
+    //     attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(roll_in, pitch_in, yaw_rate_in);
+    // } else {
+    //     attitude_control->input_euler_angle_roll_pitch_yaw(roll_in, pitch_in, yaw_in, true);
+    // }
+    attitude_control->input_euler_angle_roll_pitch_yaw(roll_in, pitch_in, yaw_in, true);
+    // call position controller
+    if (guided_accel_state.use_thrust) {
+        attitude_control->set_throttle_out(guided_accel_state.thrust, true, copter.g.throttle_filt);
     } else {
         pos_control->set_alt_target_from_climb_rate_ff(climb_rate_cms, G_Dt, false);
         pos_control->update_z_controller();

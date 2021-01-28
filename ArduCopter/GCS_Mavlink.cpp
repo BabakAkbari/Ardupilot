@@ -1098,10 +1098,14 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
         bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
 
         // exit immediately if acceleration provided
+        // modified
+        // if (!acc_ignore) {
+        //     break;
+        // }
+        // modifed
         if (!acc_ignore) {
-            break;
+            copter.mode_guided.set_accel(packet.afx, packet.afy, packet.afz, packet.yaw);
         }
-
         // prepare position
         Vector3f pos_vector;
         if (!pos_ignore) {
