@@ -36,6 +36,24 @@
 #endif
 
 const AP_Param::Info Copter::var_info[] = {
+    // @Param: GUIDED_ACCEL_P
+    // @DisplayName: GUIDED ACCEL P
+    // @Description: PID gain parameters Babak Hassan
+    // @Range: -32768 32767
+    // @User: Advanced
+    GSCALAR(guided_accel_p, "GUIDED_ACCEL_P", GUIDED_ACCEL_P_DEFAULT),
+    // @Param: GUIDED_ACCEL_I
+    // @DisplayName: GUIDED ACCEL I
+    // @Description: PID gain parameters Babak Hassan
+    // @Range: -32768 32767
+    // @User: Advanced
+    GSCALAR(guided_accel_i, "GUIDED_ACCEL_I", GUIDED_ACCEL_I_DEFAULT),
+    // @Param: GUIDED_ACCEL_D
+    // @DisplayName: GUIDED ACCEL D
+    // @Description: PID gain parameters Babak Hassan
+    // @Range: -32768 32767
+    // @User: Advanced
+    GSCALAR(guided_accel_d, "GUIDED_ACCEL_D", GUIDED_ACCEL_D_DEFAULT),
     // @Param: FORMAT_VERSION
     // @DisplayName: Eeprom format version number
     // @Description: This value is incremented when changes are made to the eeprom format
