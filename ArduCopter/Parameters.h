@@ -375,11 +375,15 @@ public:
         // 254,255: reserved
 
         k_param_vehicle = 257, // vehicle common block of parameters
-
+        k_param_guided_accel_p,
+        k_param_guided_accel_i,
+        k_param_guided_accel_d,
         // the k_param_* space is 9-bits in size
         // 511: reserved
     };
-
+    AP_Float        guided_accel_p;
+    AP_Float        guided_accel_i;
+    AP_Float        guided_accel_d;
     AP_Int16        format_version;
 
     // Telemetry control
