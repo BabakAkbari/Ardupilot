@@ -47,6 +47,7 @@ public:
     // get accessors
     AP_Float   &kP() { return _kp; }
     AP_Float   &kI() { return _ki; }
+    AP_Float   &kD() { return _kd; }
     float       imax() const { return _imax.get(); }
     float       filt_hz() const { return _filt_hz.get(); }
     float       get_filt_alpha() const { return _filt_alpha; }
