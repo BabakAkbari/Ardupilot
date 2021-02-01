@@ -762,3 +762,16 @@
 #ifndef HAL_FRAME_TYPE_DEFAULT
 #define HAL_FRAME_TYPE_DEFAULT AP_Motors::MOTOR_FRAME_TYPE_X
 #endif
+
+
+#ifndef GUIDED_ACCEL_P_DEFAULT
+ # define GUIDED_ACCEL_P_DEFAULT     4.5   // default value for my new parameter
+#endif
+
+#ifndef GUIDED_ACCEL_I_DEFAULT
+ # define GUIDED_ACCEL_I_DEFAULT     2.5   // default value for my new parameter
+#endif
+
+#ifndef GUIDED_ACCEL_D_DEFAULT
+ # define GUIDED_ACCEL_D_DEFAULT     0.5   // default value for my new parameter
+#endif
