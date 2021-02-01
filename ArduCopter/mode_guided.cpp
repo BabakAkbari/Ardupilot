@@ -1,6 +1,8 @@
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_HAL/AP_HAL.h>
 #include <AP_InertialNav/AP_InertialNav.h>     // Inertial Navigation library
+#include <AC_PID/AC_PID_2D.h>   
+#include <AP_Param/AP_Param.h>
 #include "Copter.h"
 
 
@@ -21,13 +23,30 @@ static Vector3f guided_pos_target_cm;       // position target (used by posvel c
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and posvel controller)
 static uint32_t posvel_update_time_ms;      // system time of last target update to posvel controller (i.e. position and velocity update)
 static uint32_t vel_update_time_ms;         // system time of last target update to velocity controller
-class DummyVehicle {
-public:
-    AP_AHRS_NavEKF ahrs{AP_AHRS_NavEKF::FLAG_ALWAYS_USE_EKF};
-};
 
-static DummyVehicle vehicle;
-AP_AHRS_NavEKF &_ahrs = vehicle.ahrs;
+ # define GUIDED_ACCEL_XY_P                   4.5f    // horizontal accel    controller P gain default
+ # define GUIDED_ACCEL_XY_I                   2.5f    // horizontal accel controller I gain default
+ # define GUIDED_ACCEL_XY_D                   0.5f    // horizontal accel controller D gain default
+ # define GUIDED_ACCEL_XY_IMAX                1000.0f // horizontal accel controller IMAX gain default
+ # define GUIDED_ACCEL_XY_FILT_HZ             5.0f    // horizontal accel controller input filter
+ # define GUIDED_ACCEL_XY_FILT_D_HZ           5.0f    // horizontal accel controller input filter for D
+
+
+Parameters g;
+
+ AC_PID_2D   _pid_accel_xy{GUIDED_ACCEL_XY_P, GUIDED_ACCEL_XY_I, GUIDED_ACCEL_XY_D, GUIDED_ACCEL_XY_IMAX, 
+                         GUIDED_ACCEL_XY_FILT_HZ, GUIDED_ACCEL_XY_FILT_D_HZ, POSCONTROL_DT_50HZ};
+
+
+
+AP_AHRS_NavEKF& _ahrs = AP::ahrs_navekf();
+
+Vector3f    _accel_error;
+
+Vector2f accel_target, accel_xy_p, accel_xy_i, accel_xy_d;
+
+Vector3f    _accel_target;   
+
 struct {
     uint32_t update_time_ms;
     float roll_cd;
@@ -39,13 +58,15 @@ struct {
     bool use_yaw_rate;
     bool use_thrust;
 } static guided_angle_state;
-// added
+
 struct {
     uint32_t update_time_ms;
     float roll_cd;
     float pitch_cd;
     float yaw_cd;
     float yaw_rate_cds;
+    float accel_x;
+    float accel_y;
     float climb_rate_cms;   // climb rate in cms.  Used if use_thrust is false
     float thrust;           // thrust from -1 to 1.  Used if use_thrust is true
     bool use_yaw_rate;
@@ -282,6 +303,8 @@ void ModeGuided::accel_control_start()
 
     // pilot always controls yaw
     auto_yaw.set_mode(AUTO_YAW_HOLD);
+    _pid_accel_xy.set_dt(0.01);
+    _pid_accel_xy.reset_filter();
 }
 
 // guided_set_destination - sets guided mode's target destination
@@ -311,7 +334,7 @@ bool ModeGuided::set_destination(const Vector3f& destination, bool use_yaw, floa
     wp_nav->set_wp_destination(destination, terrain_alt);
 
     // log target
-    copter.Log_Write_GuidedTarget(guided_mode, destination, Vector3f());
+    // copter.Log_Write_GuidedTarget(guided_mode, destination, Vector3f());
     return true;
 }
 
@@ -354,7 +377,7 @@ bool ModeGuided::set_destination(const Location& dest_loc, bool use_yaw, float y
     set_yaw_state(use_yaw, yaw_cd, use_yaw_rate, yaw_rate_cds, relative_yaw);
 
     // log target
-    copter.Log_Write_GuidedTarget(guided_mode, Vector3f(dest_loc.lat, dest_loc.lng, dest_loc.alt),Vector3f());
+    // copter.Log_Write_GuidedTarget(guided_mode, Vector3f(dest_loc.lat, dest_loc.lng, dest_loc.alt),Vector3f());
     return true;
 }
 
@@ -375,7 +398,7 @@ void ModeGuided::set_velocity(const Vector3f& velocity, bool use_yaw, float yaw_
 
     // log target
     if (log_request) {
-        copter.Log_Write_GuidedTarget(guided_mode, Vector3f(), velocity);
+        // copter.Log_Write_GuidedTarget(guided_mode, Vector3f(), velocity);
     }
 }
 
@@ -407,7 +430,7 @@ bool ModeGuided::set_destination_posvel(const Vector3f& destination, const Vecto
     copter.pos_control->set_pos_target(guided_pos_target_cm);
 
     // log target
-    copter.Log_Write_GuidedTarget(guided_mode, destination, velocity);
+    // copter.Log_Write_GuidedTarget(guided_mode, destination, velocity);
     return true;
 }
 
@@ -439,9 +462,9 @@ void ModeGuided::set_angle(const Quaternion &q, float climb_rate_cms_or_thrust, 
     guided_angle_state.update_time_ms = millis();
 
     // log target
-    copter.Log_Write_GuidedTarget(guided_mode,
-                           Vector3f(guided_angle_state.roll_cd, guided_angle_state.pitch_cd, guided_angle_state.yaw_cd),
-                           Vector3f(0.0f, 0.0f, climb_rate_cms_or_thrust));
+    // copter.Log_Write_GuidedTarget(guided_mode,
+                        //    Vector3f(guided_angle_state.roll_cd, guided_angle_state.pitch_cd, guided_angle_state.yaw_cd),
+                        //    Vector3f(0.0f, 0.0f, climb_rate_cms_or_thrust));
 }
 //added
 void ModeGuided::set_accel(float accel_x_cmss, float accel_y_cmss, float accel_z_cmss, float yaw)
@@ -451,41 +474,14 @@ void ModeGuided::set_accel(float accel_x_cmss, float accel_y_cmss, float accel_z
         accel_control_start();
     }
 
-    float accel_right, accel_forward;
-
-    // rotate accelerations into body forward-right frame
-    // todo: this should probably be based on the desired heading not the current heading
-    accel_forward = accel_x_cmss * _ahrs.cos_yaw() + accel_y_cmss * _ahrs.sin_yaw();
-    accel_right = -accel_x_cmss * _ahrs.sin_yaw() + accel_y_cmss * _ahrs.cos_yaw();
-
-    // update angle targets that will be passed to stabilize controller
-    guided_accel_state.pitch_cd = atanf(-accel_forward / (GRAVITY_MSS * 100.0f)) * (18000.0f / M_PI);
-    float cos_pitch_target = cosf(guided_accel_state.pitch_cd * M_PI / 18000.0f);
-    guided_accel_state.roll_cd = atanf(accel_right * cos_pitch_target / (GRAVITY_MSS * 100.0f)) * (18000.0f / M_PI);
+    guided_accel_state.accel_x = accel_x_cmss;
+    guided_accel_state.accel_y = accel_y_cmss;
     guided_accel_state.yaw_cd = yaw;
-    // // convert quaternion to euler angles
-    // q.to_euler(guided_angle_state.roll_cd, guided_angle_state.pitch_cd, guided_angle_state.yaw_cd);
-    // guided_angle_state.roll_cd = ToDeg(guided_angle_state.roll_cd) * 100.0f;
-    // guided_angle_state.pitch_cd = ToDeg(guided_angle_state.pitch_cd) * 100.0f;
-    // guided_angle_state.yaw_cd = wrap_180_cd(ToDeg(guided_angle_state.yaw_cd) * 100.0f);
-    // guided_angle_state.yaw_rate_cds = ToDeg(yaw_rate_rads) * 100.0f;
-    // guided_angle_state.use_yaw_rate = use_yaw_rate;
-
-    // guided_angle_state.use_thrust = use_thrust;
-    // if (use_thrust) {
-    //     guided_angle_state.thrust = climb_rate_cms_or_thrust;
-    //     guided_angle_state.climb_rate_cms = 0.0f;
-    // } else {
-    //     guided_angle_state.thrust = 0.0f;
-    //     guided_angle_state.climb_rate_cms = climb_rate_cms_or_thrust;
-    // }
-    guided_accel_state.climb_rate_cms = 0.0f;
-
     guided_accel_state.update_time_ms = millis();
 
     // log target
-    copter.Log_Write_GuidedTarget(guided_mode,Vector3f(guided_accel_state.roll_cd, guided_accel_state.pitch_cd, guided_accel_state.yaw_cd),
-                           Vector3f(0.0f, 0.0f, 0.0f));
+    copter.Log_Write_GuidedTarget(guided_mode, Vector3f(_ahrs.get_accel_ef_blended().x, _ahrs.get_accel_ef_blended().y, -(_ahrs.get_accel_ef_blended().z + GRAVITY_MSS)), 
+    Vector3f(0.0f, 0.0f, 0.0f), Vector3f(accel_x_cmss / 100.0f, accel_y_cmss / 100.0f, accel_z_cmss / 100.0f));
 }
 
 // guided_takeoff_run - takeoff in guided mode
@@ -756,10 +752,57 @@ void ModeGuided::angle_control_run()
 // added
 void ModeGuided::accel_control_run()
 {
-    // constrain desired lean angles
+    if ( abs(_pid_accel_xy.kP() - g.guided_accel_p) > 0.01){
+        _pid_accel_xy.kP(g.guided_accel_p);
+    }
+
+     if ( abs(_pid_accel_xy.kI() - g.guided_accel_i) > 0.01){
+        _pid_accel_xy.kI(g.guided_accel_i);
+    }
+
+    if ( abs(_pid_accel_xy.kD() - g.guided_accel_d) > 0.01){
+        _pid_accel_xy.kD(g.guided_accel_d);
+    }
+
+
+    _accel_target.x = guided_accel_state.accel_x;
+    _accel_target.y = guided_accel_state.accel_y;
+    
+    // calculate accel error
+    _accel_error.x = _accel_target.x - _ahrs.get_accel_ef_blended().x * 100.0f;
+    _accel_error.y = _accel_target.y - _ahrs.get_accel_ef_blended().y * 100.0f;
+
+    _pid_accel_xy.set_input(_accel_error);
+
+    // get p
+    accel_xy_p = _pid_accel_xy.get_p();
+
+    //get i
+    accel_xy_i = _pid_accel_xy.get_i();
+
+    // get d
+    accel_xy_d = _pid_accel_xy.get_d();
+
+    accel_target.x = (accel_xy_p.x + accel_xy_i.x + accel_xy_d.x);
+    accel_target.y = (accel_xy_p.y + accel_xy_i.y + accel_xy_d.y);
+
+    float accel_right, accel_forward;
+
+    // rotate accelerations into body forward-right frame
+    // todo: this should probably be based on the desired heading not the current heading
+    accel_forward = accel_target.x * _ahrs.cos_yaw() + accel_target.y * _ahrs.sin_yaw();
+    accel_right = -accel_target.x * _ahrs.sin_yaw() + accel_target.y * _ahrs.cos_yaw();
+
+    // update angle targets that will be passed to stabilize controller
+    guided_accel_state.pitch_cd = atanf(-accel_forward / (GRAVITY_MSS * 100.0f)) * (18000.0f / M_PI);
+    float cos_pitch_target = cosf(guided_accel_state.pitch_cd * M_PI / 18000.0f);
+    guided_accel_state.roll_cd = atanf(accel_right * cos_pitch_target / (GRAVITY_MSS * 100.0f)) * (18000.0f / M_PI);
+    guided_accel_state.climb_rate_cms = 0.0f;
+
     float roll_in = guided_accel_state.roll_cd;
     float pitch_in = guided_accel_state.pitch_cd;
     float total_in = norm(roll_in, pitch_in);
+
     float angle_max = MIN(attitude_control->get_althold_lean_angle_max(), copter.aparm.angle_max);
     if (total_in > angle_max) {
         float ratio = angle_max / total_in;
@@ -769,16 +812,8 @@ void ModeGuided::accel_control_run()
 
     // wrap yaw request
     float yaw_in = wrap_180_cd(guided_accel_state.yaw_cd);
-    // float yaw_rate_in = wrap_180_cd(guided_accel_state.yaw_rate_cds);
 
     float climb_rate_cms = 0.0f;
-    // if (!guided_angle_state.use_thrust) {
-    //     // constrain climb rate
-    //     climb_rate_cms = constrain_float(guided_angle_state.climb_rate_cms, -fabsf(wp_nav->get_default_speed_down()), wp_nav->get_default_speed_up());
-
-    //     // get avoidance adjusted climb rate
-    //     climb_rate_cms = get_avoidance_adjusted_climbrate(climb_rate_cms);
-    // }
 
     // check for timeout - set lean angles and climb rate to zero if no updates received for 3 seconds
     uint32_t tnow = millis();
@@ -818,12 +853,8 @@ void ModeGuided::accel_control_run()
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 
     // call attitude controller
-    // if (guided_angle_state.use_yaw_rate) {
-    //     attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(roll_in, pitch_in, yaw_rate_in);
-    // } else {
-    //     attitude_control->input_euler_angle_roll_pitch_yaw(roll_in, pitch_in, yaw_in, true);
-    // }
     attitude_control->input_euler_angle_roll_pitch_yaw(roll_in, pitch_in, yaw_in, true);
+    
     // call position controller
     if (guided_accel_state.use_thrust) {
         attitude_control->set_throttle_out(guided_accel_state.thrust, true, copter.g.throttle_filt);
