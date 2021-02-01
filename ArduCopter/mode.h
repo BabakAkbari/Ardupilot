@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include "Copter.h"
 class Parameters;
 class ParametersG2;
@@ -831,6 +832,8 @@ public:
     // added
     void accel_control_start();
     void accel_control_run();
+    
+    
 
 protected:
 
@@ -1398,6 +1401,7 @@ public:
     bool is_autopilot() const override { return true; }
 
     bool set_velocity(const Vector3f& velocity_neu);
+    
 
 protected:
 
