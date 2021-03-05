@@ -1,10 +1,12 @@
-#pragma GCC optimize("O2")
+#pragma once
 
-#define ALLOW_DOUBLE_MATH_FUNCTIONS
-#include <stdint.h>
-#include "AP_Math.h"
-#include <AP_HAL/AP_HAL.h>
-#include <AP_HAL/AP_HAL_Boards.h>
+
+#include <cmath>
+#include <AP_Common/AP_Common.h>
+#include <stdio.h>
+#include <AP_Math/AP_Math.h>
+
+
 
 template <typename T>
 class Matrix
@@ -26,7 +28,7 @@ class Matrix
     Matrix<T> operator- (const Matrix<T>& matrix);
     Matrix<T> operator* (const Matrix<T>& matrix);
 
-    Matrix<T> transpose();
+    Matrix<T> transpose() const;
 
     void operator*= (const Matrix<T>& matrix);
     void operator*= (const T& value);
@@ -44,17 +46,20 @@ class Matrix
         return result;   
     }
 
-    float norm();
+    float norm() const;
     void set(size_t i, size_t j, T value);
-    T get(size_t i, size_t j);
+    T get(size_t i, size_t j) const;
     Matrix<T>& operator<< (T x);
     Matrix<T>& operator, (T x);
     Matrix<T>& identity();
     Matrix<T>& zero();
-    Matrix<T> minor_matrix(size_t r, size_t c);
-    T minor(size_t r, size_t c);
-    T algcompl(size_t r, size_t c);
-    T det();
-    Matrix<T> inv();
+    Matrix<T> minor_matrix(size_t r, size_t c) const;
+    T minor_a(size_t r, size_t c) const;
+    T algcompl(size_t r, size_t c) const;
+    T det() const;
+    Matrix<T> inv() const;
+    T maxCoeff() const;
+    bool hasNaN() const;
+    void printmat() const;
 };
 

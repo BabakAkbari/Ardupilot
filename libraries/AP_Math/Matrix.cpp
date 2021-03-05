@@ -1,4 +1,7 @@
-#include "Matrix.h"
+#pragma GCC optimize("O6")
+
+
+#include "AP_Math.h"
 
 template <typename T>
 Matrix<T>::Matrix(size_t r, size_t c) : elements{new T[r * c]}, row{r}, col{c}
@@ -49,9 +52,10 @@ Matrix<T>& Matrix<T>::operator= (const Matrix<T>& matrix)
 template <typename T>
 Matrix<T> Matrix<T>::operator+ (const Matrix<T>& matrix)
 {
+    Matrix result(row, col);
     if(row == matrix.row && col == matrix.col)
     {
-        Matrix result(row, col);
+        
         
         for (size_t i=0; i < row * col; i++)
         {
@@ -60,14 +64,16 @@ Matrix<T> Matrix<T>::operator+ (const Matrix<T>& matrix)
 
         return result;
     }
+    return result;
 }
 
 template <typename T>
 Matrix<T> Matrix<T>::operator- (const Matrix<T>& matrix)
 {
+    Matrix result(row, col);
     if(row == matrix.row && col == matrix.col)
     {
-        Matrix result(row, col);
+        
         
         for (size_t i=0; i < row * col; i++)
         {
@@ -76,14 +82,16 @@ Matrix<T> Matrix<T>::operator- (const Matrix<T>& matrix)
 
         return result;
     }
+    return result;
 }
 
 template <typename T>
 Matrix<T> Matrix<T>::operator* (const Matrix<T>& matrix)
 {
+    Matrix result(row, matrix.col);
     if(col == matrix.row)
     {
-        Matrix result(row, matrix.col);
+        
 
         for(size_t i = 0; i < row; i++)
         {
@@ -98,10 +106,11 @@ Matrix<T> Matrix<T>::operator* (const Matrix<T>& matrix)
         }
         return result;
     }
+    return result;
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::transpose()
+Matrix<T> Matrix<T>::transpose() const
 {
     Matrix result(col, row);
     
@@ -165,18 +174,19 @@ Matrix<T> Matrix<T>::operator/(const T& value)
 }
 
 template <typename T>
-float Matrix<T>::norm()
+float Matrix<T>::norm() const
 {
     if(col == 1 || row == 1)
     {
-        T sum;
+        T sum = 0;
         for(size_t i = 0; i < row * col; i++)
         {
-            sum += elements[i] ^ 2;
+            sum += powf(elements[i], 2);
         }
 
-        return sqrt(sum);
+        return sqrtf(sum);
     }
+    return 0;
 }
 
 template <typename T>
@@ -186,7 +196,7 @@ void Matrix<T>::set(size_t i, size_t j, T value)
 }
 
 template <typename T>
-T Matrix<T>::get(size_t i, size_t j)
+T Matrix<T>::get(size_t i, size_t j) const
 {
     return elements[i * col + j];
 }
@@ -235,11 +245,11 @@ Matrix<T>& Matrix<T>::zero()
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::minor_matrix(size_t r, size_t c)
+Matrix<T> Matrix<T>::minor_matrix(size_t r, size_t c) const
 {
+    Matrix result(row - 1, col - 1);
     if (r <= row && c <= col)
     {
-        Matrix result(row - 1, col - 1);
         int curi = 0;
         int curj = 0;
         for(size_t i = 0; i < row; i++)
@@ -262,28 +272,31 @@ Matrix<T> Matrix<T>::minor_matrix(size_t r, size_t c)
 
         return result;
     }
+    return result;
 }
 
 template <typename T>
-T Matrix<T>::minor(size_t r, size_t c)
+T Matrix<T>::minor_a(size_t r, size_t c) const
 {
     if(row == col && r <= row && c <= col)
     {
         return this->minor_matrix(r, c).det();
     }
+    return 0;
 }
 
 template <typename T>
-T Matrix<T>::algcompl(size_t r, size_t c)
+T Matrix<T>::algcompl(size_t r, size_t c) const
 {
     if(row == col && r <= row && c <= col)
     {
-        return (((r + c) % 2 == 0) ? 1 : -1) * this->minor(r, c);
+        return (((r + c) % 2 == 0) ? 1 : -1) * this->minor_a(r, c);
     }
+    return 0;
 }
 
 template <typename T>
-T Matrix<T>::det()
+T Matrix<T>::det() const
 {
     if(row == col)
     {
@@ -306,18 +319,19 @@ T Matrix<T>::det()
             return det;
         }
     }
+    return 0;
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::inv()
+Matrix<T> Matrix<T>::inv() const
 {
+    Matrix result(row);
     if(row == col)
     {
         T det = this->det();
-        if(det != 0)
+        if(det < 0.0f || det > 0.0f)
         {
-            Matrix result(row);
-
+            
             for(size_t i=0; i < row; i++)
             {
                 for(size_t j=0; j < col; j++)
@@ -330,4 +344,45 @@ Matrix<T> Matrix<T>::inv()
             return result;
         }
     }
+    return result;
 }
+
+template <typename T>
+T Matrix<T>::maxCoeff() const
+{
+    T max = elements[0];
+    for(size_t i = 1; i < row * col; i++)
+    {
+        if(elements[i] > max)
+            max = elements[i];
+    }
+
+    return max;
+}
+
+template <typename T>
+bool Matrix<T>::hasNaN() const
+{
+    for(size_t i = 0; i < row * col; i++)
+    {
+        if(isnan(elements[i]))
+            return true;
+    }
+    return false;
+}
+
+template <typename T>
+void Matrix<T>::printmat() const
+{
+    for(size_t i =0; i < row; i++)
+    {
+        for(size_t j=0; j < col; j++)
+        {
+            printf("%.4f    ", elements[i * col + j]);
+        }
+        printf("\n");
+    }
+    printf("\n\n");
+}
+// only define for float
+template class Matrix<float>;
