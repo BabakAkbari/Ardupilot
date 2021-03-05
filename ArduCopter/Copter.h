@@ -67,7 +67,7 @@
 #include <AP_Parachute/AP_Parachute.h>
 #include <AC_Sprayer/AC_Sprayer.h>
 #include <AP_ADSB/AP_ADSB.h>
-
+#include <AC_AttitudeControl/AC_LQRControl.h> 
 // Configuration
 #include "defines.h"
 #include "config.h"
@@ -466,6 +466,7 @@ private:
     AC_PosControl *pos_control;
     AC_WPNav *wp_nav;
     AC_Loiter *loiter_nav;
+    AC_LQRControl *lqr_control;
 
 #if MODE_CIRCLE_ENABLED == ENABLED
     AC_Circle *circle_nav;

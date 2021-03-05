@@ -75,7 +75,6 @@
  */
 
 #include "Copter.h"
-
 #define FORCE_VERSION_H_INCLUDE
 #include "version.h"
 #undef FORCE_VERSION_H_INCLUDE
@@ -368,6 +367,8 @@ void Copter::update_batt_compass(void)
         compass.set_voltage(battery.voltage());
         compass.read();
     }
+
+    // lqr_control->linearize();
 }
 
 // Full rate logging of attitude, rate and pid loops

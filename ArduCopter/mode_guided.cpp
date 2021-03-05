@@ -17,7 +17,8 @@ static Vector3f guided_pos_target_cm;       // position target (used by posvel c
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and posvel controller)
 static uint32_t posvel_update_time_ms;      // system time of last target update to posvel controller (i.e. position and velocity update)
 static uint32_t vel_update_time_ms;         // system time of last target update to velocity controller
-
+static uint32_t linear_update_time_ms;         // system time of last target update to velocity controller
+static uint32_t track_update_time_ms;
 struct {
     uint32_t update_time_ms;
     float roll_cd;
@@ -408,42 +409,58 @@ void ModeGuided::takeoff_run()
 // called from guided_run
 void ModeGuided::pos_control_run()
 {
-    // process pilot's yaw input
-    float target_yaw_rate = 0;
-    if (!copter.failsafe.radio && use_pilot_yaw()) {
-        // get pilot's desired yaw rate
-        target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
-        if (!is_zero(target_yaw_rate)) {
-            auto_yaw.set_mode(AUTO_YAW_HOLD);
-        }
-    }
+
+    // lqr_control->linearize();
+    // lqr_control->set_output();
+    // // process pilot's yaw input
+    // float target_yaw_rate = 0;
+    // if (!copter.failsafe.radio && use_pilot_yaw()) {
+    //     // get pilot's desired yaw rate
+    //     target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
+    //     if (!is_zero(target_yaw_rate)) {
+    //         auto_yaw.set_mode(AUTO_YAW_HOLD);
+    //     }
+    // }
 
     // if not armed set throttle to zero and exit immediately
-    if (is_disarmed_or_landed()) {
-        make_safe_spool_down();
-        return;
-    }
+    // if (is_disarmed_or_landed()) {
+    //     make_safe_spool_down();
+    //     return;
+    // }
 
     // set motors to full range
+
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
-
-    // run waypoint controller
-    copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
-
-    // call z-axis position controller (wpnav should have already updated it's alt target)
-    pos_control->update_z_controller();
-
-    // call attitude controller
-    if (auto_yaw.mode() == AUTO_YAW_HOLD) {
-        // roll & pitch from waypoint controller, yaw rate from pilot
-        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
-    } else if (auto_yaw.mode() == AUTO_YAW_RATE) {
-        // roll & pitch from waypoint controller, yaw rate from mavlink command or mission item
-        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.rate_cds());
-    } else {
-        // roll, pitch from waypoint controller, yaw heading from GCS or auto_heading()
-        attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
+    set_land_complete(false);
+    set_throttle_takeoff();
+    lqr_control->set_refernce(20 * sinf(2* 3.14 * millis() / 100000), 20 * cosf(2 * 3.14 * millis() / 100000), 20);
+    track_update_time_ms = millis();
+    uint32_t tnow = millis();
+    if  (tnow - linear_update_time_ms > 100)
+    {
+        lqr_control->linearize();
+        linear_update_time_ms = millis();
     }
+
+    lqr_control->set_output();
+
+    // // run waypoint controller
+    // copter.failsafe_terrain_set_status(wp_nav->update_wpnav());
+
+    // // call z-axis position controller (wpnav should have already updated it's alt target)
+    // pos_control->update_z_controller();
+
+    // // call attitude controller
+    // if (auto_yaw.mode() == AUTO_YAW_HOLD) {
+    //     // roll & pitch from waypoint controller, yaw rate from pilot
+    //     attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
+    // } else if (auto_yaw.mode() == AUTO_YAW_RATE) {
+    //     // roll & pitch from waypoint controller, yaw rate from mavlink command or mission item
+    //     attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.rate_cds());
+    // } else {
+    //     // roll, pitch from waypoint controller, yaw heading from GCS or auto_heading()
+    //     attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
+    // }
 }
 
 // guided_vel_control_run - runs the guided velocity controller

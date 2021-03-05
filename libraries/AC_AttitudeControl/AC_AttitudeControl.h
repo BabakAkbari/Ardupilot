@@ -67,6 +67,10 @@ public:
     // Empty destructor to suppress compiler warning
     virtual ~AC_AttitudeControl() {}
 
+    // This represents the angular velocity in radians per second in the body frame, used in the angular
+    // velocity controller.
+    Vector3f            _rate_target_ang_vel;
+
     // pid accessors
     AC_P& get_angle_roll_p() { return _p_angle_roll; }
     AC_P& get_angle_pitch_p() { return _p_angle_pitch; }
@@ -399,9 +403,7 @@ protected:
     // the target attitude frame.
     Vector3f            _attitude_target_ang_vel;
 
-    // This represents the angular velocity in radians per second in the body frame, used in the angular
-    // velocity controller.
-    Vector3f            _rate_target_ang_vel;
+
 
     // This is the the angular velocity in radians per second in the body frame, added to the output angular
     // attitude controller by the System Identification Mode.
