@@ -68,6 +68,7 @@ class AC_LQRControl {
     Matrix<float> x_ref{1,10};
     Matrix<float> u_ref{1,4};
     Matrix<float> K{4, 10};
+    Matrix<float> out {4, 1};
     bool t = false;
     
     // Intersampling period in seconds
