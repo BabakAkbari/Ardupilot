@@ -31,12 +31,14 @@ class AC_LQRControl {
         _motors(motors),
         _attitude_control(attitude_control)
         {
+            //  AP_Param::setup_object_defaults(this, var_info);
             // AP_Param::setup_object_defaults(this, var_info);
             set_Q_matrix();
             set_R_matrix();
         }
     // empty destructor to suppress compiler warning
 	// virtual ~AC_LQRControl() {}
+    // static const struct AP_Param::GroupInfo var_info[];
     void get_A_matrix(const Matrix<float>& x, const Matrix<float>& u);
     void get_B_matrix(const Matrix<float>& x, const Matrix<float>& u);
     // void lqr(Matrix<float> _Q, Matrix<float> _R, Matrix<float> _A, Matrix<float> _B, Matrix<float> _K);
@@ -51,8 +53,7 @@ class AC_LQRControl {
     void set_R_matrix();
 
     void set_output();
-    void set_refernce(double x, double y, double z);
-    // void Write(const char *name, const char *labels, const char *units, const char *mults, const char *fmt, ...);
+    void set_refernce(double x, double y, double z, double vx, double vy, double vz);
 
 
     // This represents the angular velocity in radians per second in the body frame, used in the angular
@@ -81,9 +82,12 @@ class AC_LQRControl {
     AP_Motors&          _motors;
     AC_AttitudeControl&         _attitude_control;
     Quaternion          _attitude_quat;
-
+    
+    protected:
+    // parameters
+    AP_Int8                     _enabled;           // enabled/disabled and behaviour
     
     // User settable parameters
-    // static const struct AP_Param::GroupInfo var_info[];
+    
 
 };

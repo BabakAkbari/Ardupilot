@@ -410,8 +410,6 @@ void ModeGuided::takeoff_run()
 void ModeGuided::pos_control_run()
 {
 
-    // lqr_control->linearize();
-    // lqr_control->set_output();
     // // process pilot's yaw input
     // float target_yaw_rate = 0;
     // if (!copter.failsafe.radio && use_pilot_yaw()) {
@@ -433,7 +431,8 @@ void ModeGuided::pos_control_run()
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
     set_land_complete(false);
     set_throttle_takeoff();
-    lqr_control->set_refernce(20 * sinf(2* 3.14 * millis() / 100000), 20 * cosf(2 * 3.14 * millis() / 100000), 20);
+    // lqr_control->set_refernce(10 * sinf(2* 3.14 * millis() / 100000), 10 * cosf(2 * 3.14 * millis() / 100000), 20,0, 0, 0);
+    lqr_control->set_refernce(10,10,30, 0, 0, 0);
     track_update_time_ms = millis();
     uint32_t tnow = millis();
     if  (tnow - linear_update_time_ms > 100)

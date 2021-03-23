@@ -4,6 +4,7 @@
 /// @brief   ArduCopter attitude control library
 
 #include "AC_AttitudeControl.h"
+#include "AC_LQRControl.h"
 #include <AP_Motors/AP_MotorsMulticopter.h>
 
 // default rate controller PID gains

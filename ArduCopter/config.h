@@ -256,7 +256,7 @@
 //////////////////////////////////////////////////////////////////////////////
 // Auto mode - allows vehicle to trace waypoints and perform automated actions
 #ifndef MODE_AUTO_ENABLED
-# define MODE_AUTO_ENABLED ENABLED
+#define MODE_AUTO_ENABLED DISABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -316,13 +316,13 @@
 //////////////////////////////////////////////////////////////////////////////
 // RTL - Return To Launch
 #ifndef MODE_RTL_ENABLED
-# define MODE_RTL_ENABLED ENABLED
+#define MODE_RTL_ENABLED DISABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
 // SmartRTL - allows vehicle to retrace a (loop-eliminated) breadcrumb home
 #ifndef MODE_SMARTRTL_ENABLED
-# define MODE_SMARTRTL_ENABLED ENABLED
+#define MODE_SMARTRTL_ENABLED DISABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -664,7 +664,7 @@
 #endif
 
 #ifndef AC_TERRAIN
- #define AC_TERRAIN ENABLED
+#define AC_TERRAIN DISABLED
 #endif
 
 #if AC_TERRAIN && !AC_RALLY
@@ -761,4 +761,10 @@
 
 #ifndef HAL_FRAME_TYPE_DEFAULT
 #define HAL_FRAME_TYPE_DEFAULT AP_Motors::MOTOR_FRAME_TYPE_X
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+// LQR cotrol
+#ifndef LQR
+ #define LQR ENABLED
 #endif

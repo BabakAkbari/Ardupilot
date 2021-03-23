@@ -68,6 +68,7 @@
 #include <AC_Sprayer/AC_Sprayer.h>
 #include <AP_ADSB/AP_ADSB.h>
 #include <AC_AttitudeControl/AC_LQRControl.h> 
+
 // Configuration
 #include "defines.h"
 #include "config.h"
@@ -114,6 +115,9 @@
  # include <AC_PrecLand/AC_PrecLand.h>
  # include <AP_IRLock/AP_IRLock.h>
 #endif
+// #if LQR == ENABLED
+//     #include <AC_AttitudeControl/AC_LQRControl.h> 
+// #endif
 #if MODE_FOLLOW_ENABLED == ENABLED
  # include <AP_Follow/AP_Follow.h>
 #endif
@@ -466,7 +470,12 @@ private:
     AC_PosControl *pos_control;
     AC_WPNav *wp_nav;
     AC_Loiter *loiter_nav;
+// LQR
+// #if LQR == ENABLED
     AC_LQRControl *lqr_control;
+// #endif
+    
+
 
 #if MODE_CIRCLE_ENABLED == ENABLED
     AC_Circle *circle_nav;

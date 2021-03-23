@@ -2,6 +2,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Math/AP_Math.h>
 
+
 // table of user settable parameters
 const AP_Param::GroupInfo AC_AttitudeControl_Multi::var_info[] = {
     // parameters from parent vehicle
@@ -332,7 +333,7 @@ void AC_AttitudeControl_Multi::rate_controller_run()
 {
     // move throttle vs attitude mixing towards desired (called from here because this is conveniently called on every iteration)
     update_throttle_rpy_mix();
-    // printf("")
+
     _rate_target_ang_vel += _rate_sysid_ang_vel;
 
     Vector3f gyro_latest = _ahrs.get_gyro_latest();

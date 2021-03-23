@@ -1,7 +1,15 @@
 #include "AC_LQRControl.h"
 
 
-
+// const AP_Param::GroupInfo AC_LQRControl::var_info[] = {
+//     // @Param: ENABLED
+//     // @DisplayName: LQR enabled/disabled and behaviour
+//     // @Description: LQR enabled/disabled and behaviour
+//     // @Values: 0:Disabled, 1:Enabled
+//     // @User: Advanced
+//     AP_GROUPINFO_FLAGS("ENABLED", 0, AC_LQRControl, _enabled, 0, AP_PARAM_FLAG_ENABLE),
+//     AP_GROUPEND
+// };
 
 void AC_LQRControl::get_A_matrix(const Matrix<float>& x, const Matrix<float>& u)
 {
@@ -9,11 +17,7 @@ void AC_LQRControl::get_A_matrix(const Matrix<float>& x, const Matrix<float>& u)
     float wy = u.get(0, 1);
     float wz = u.get(0, 2);
     float norm_thrust = u.get(0, 3);
-    // float wx = _ahrs.get_gyro().x;
-    // float wy = _ahrs.get_gyro().y;
-    // float wz = _ahrs.get_gyro().z;
-    // float norm_thrust = -AP::ins().get_accel().z;
-    // printf("accel : %.4f \n", norm_thrust);
+
     Quaternion q{x.get(0, 3), x.get(0, 4), x.get(0, 5), x.get(0, 6)};
     Matrix<float> q_partial_correction{4};
     Matrix<float> dqdot_dq{4};
@@ -148,6 +152,7 @@ bool AC_LQRControl::solveRiccatiIterationC(const Matrix<float>& _A, const Matrix
   for (uint32_t i = 0; i < iter_max; ++i) {
     P_next = _P + (_P * _A + AT * _P - _P * _B * Rinv * BT * _P + _Q) * dt;
     diff = fabs((P_next - _P).maxCoeff());
+    // printf(" i:  %d p: %f \n", i , diff);
     _P = P_next;
     if (diff < tolerance) {
       return true;
@@ -160,10 +165,9 @@ void AC_LQRControl::linearize()
 {
     Vector3f curr_pos = _inav.get_position() / 100.0f;
     Vector3f curr_vel = _inav.get_velocity() / 100.0f;
-    // _ahrs.get_quat_body_to_ned(_attitude_quat);
     _attitude_quat.from_euler(_ahrs.roll, _ahrs.pitch,  _ahrs.yaw);
     Matrix<float> x{1, 10};
-    // printf("pos: %.2f, %.2f, %.2f \n", curr_pos.x, curr_pos.y, curr_pos.z);
+
     x << curr_pos.x, curr_pos.y, curr_pos.z,
         _attitude_quat[0], _attitude_quat[1], _attitude_quat[2], _attitude_quat[3],
         curr_vel.x, curr_vel.y, curr_vel.z;
@@ -172,8 +176,7 @@ void AC_LQRControl::linearize()
     
     get_A_matrix(x, out.transpose());
     get_B_matrix(x, out.transpose());
-    // printf("A:\n");
-    // A.printmat();
+
     // printf(solveRiccatiIterationC(A, B, Q, R, P,0.001, 1.E-4, 1000000) ? "true \n" : "false \n");
     // solveRiccatiIterationC(A, B, Q, R, P,0.001, 1.E-4, 1000000);
     // solveRiccatiIterationC(A, B, Q, R, P,0.001, 1.E-3, 100000);
@@ -181,68 +184,28 @@ void AC_LQRControl::linearize()
     // solveRiccatiIterationC(A, B, Q, R, P,0.01, 1.E-3, 10000);
     solveRiccatiIterationC(A, B, Q, R, P,0.001, 1.E-2, 10000);
     Matrix<float> K_new{4, 10};
-    // A.printmat();
-    // B.printmat();
 
-    // printf("p:\n");
-    // P.printmat();
-    // printf("BT:\n");
-    // (B.transpose()).printmat();
-    // printf("BT*P:\n");
-    // (B.transpose() * P).printmat();
     K_new = -1 * R.inv() * B.transpose() * P;
-
-    // sock.sendto(&data_to_send, sizeof(data_to_send), "127.0.0.1", 9002);
-    // printf("Knew:\n");
-    // K_new.printmat();
-    // K_new.printmat();
-    // printf( K_new.hasNaN() ? "true" : "false");
+    
     // if( !K_new.hasNaN() )
     K = K_new;
-    // if (t == false)
-    // {
-    //   K = K_new;
-    //   t = true;
-    // }
-
-    
-    
-    // printf("R : %.2f, %.2f, %.2f, %.2f,\n", R.inv().get(0, 0), R.inv().get(1, 1), R.inv().get(2, 2), R.inv().get(3, 3));
-    // printf("Q : %.2f, %.2f, %.2f, %.2f,\n", Q.get(0, 0), Q.get(1, 1), Q.get(2, 2), Q.get(3, 3));
-    // Matrix<float> v {3,2};
-    // Matrix<float> n {3,3};
-    // v << 2, 3,
-    // 0, 5,
-    // 5, 2;
-    // n << 3, 0, 1,
-    //  0, 1, 0, 
-    //  18, 3, 0;
-
 }
 
 void AC_LQRControl::set_Q_matrix()
 {
-  Q.set(0, 0, 8.2f);
-  Q.set(1, 1, 8.2f);
-
-
-  // Q.set(1, 2, 100.0f);
-  // Q.set(2, 2, 30000.0f);
-  // Q.set(2, 2, 1000000.0f);
+  Q.set(0, 0, 9.0f);
+  Q.set(1, 1, 9.0f);
   Q.set(2, 2, 12.0f);
+  
   Q.set(3, 3, 0.001f);
-  // Q.set(4, 4, 4.0f);
-  // Q.set(5, 5, 4.0f);
-  // Q.set(6, 6, 4.0f);
   Q.set(4, 4, 1.0f);
   Q.set(5, 5, 1.0f);
   Q.set(6, 6, 1.0f);
- 
-  // Q.set(7, 7, 1000.0f);
-  // Q.set(8, 8, 0.0f);
 
-  Q.set(7, 7, 0.85f);
-  Q.set(8, 8, 0.85f);
+  Q.set(7, 7, 2.0f);
+  Q.set(8, 8, 2.0f);
+  // Q.set(7, 7, 1.5f);
+  // Q.set(8, 8, 1.5f);
   Q.set(9, 9, 0.85f);
 }
 
@@ -251,8 +214,7 @@ void AC_LQRControl::set_R_matrix()
   R << 0.1f, 0, 0, 0,
        0, 0.1f, 0, 0,
        0, 0, 0.1f ,0,
-      //  0, 0, 0, 0.05f;
-      0, 0, 0, 0.1f;
+       0, 0, 0, 0.1f;
 }
 
 void AC_LQRControl::set_output()
@@ -264,11 +226,11 @@ void AC_LQRControl::set_output()
   Matrix<float> x{1, 10};
   Matrix<float> x_error{1, 10};
 
-  // printf("pos: %.2f, %.2f, %.2f \n", curr_pos.x, curr_pos.y, curr_pos.z);
   x << curr_pos.x, curr_pos.y, curr_pos.z,
       _attitude_quat[0], _attitude_quat[1], _attitude_quat[2], _attitude_quat[3],
       curr_vel.x, curr_vel.y, curr_vel.z;
 
+  x.printmat();
   x_error = x - x_ref;
   x_error.set(0, 0, x_ref.get(0, 0) - x.get(0, 0));
   x_error.set(0, 1, x_ref.get(0, 1) - x.get(0, 1));
@@ -277,17 +239,7 @@ void AC_LQRControl::set_output()
   Quaternion q{x.get(0, 3), x.get(0, 4), x.get(0, 5), x.get(0, 6)};
   Quaternion qref{x_ref.get(0, 3), x_ref.get(0, 4), x_ref.get(0, 5), x_ref.get(0, 6)};
   Quaternion qerror =qref.inverse() * q;
-  // Quaternion qerror;
-  // float roll_ref, pitch_ref, yaw_ref;
-  // error.to_euler(roll_ref, pitch_ref, yaw_ref);
-  // printf("%.2f, %.2f , %.2f \n", degrees(roll_ref), degrees(pitch_ref), degrees(yaw_ref));
-  // printf("%.2f, %.2f , %.2f \n", degrees(_ahrs.roll), degrees(_ahrs.pitch), degrees(_ahrs.yaw));
-  // qerror.from_euler(_ahrs.roll - roll_ref, _ahrs.pitch - pitch_ref, _ahrs.yaw - yaw_ref);
 
-  // Quaternion qerror;
-  // qerror.from_euler(_ahrs.roll - radians(0), _ahrs.pitch - radians(0),  _ahrs.yaw- radians(0));
-  // qerror.to_euler(roll_ref, pitch_ref, yaw_ref);
-  // printf("%.2f, %.2f , %.2f \n", degrees(roll_ref), degrees(pitch_ref), degrees(yaw_ref));
 
   x_error.set(0, 3, qerror[0]);
   x_error.set(0, 4, qerror[1]);
@@ -295,9 +247,9 @@ void AC_LQRControl::set_output()
   x_error.set(0, 6, qerror[3]);
   
   AP::logger().Write("LQR", "TimeUS,X,Y,Z,TX,TY,TZ,VX,VY,VZ,TVX,TVY,TVZ",
-                   "smmmmmmnnnnnn", // units: seconds, meters
-                   "F000000000000", // mult: 1e-6, 1e-2
-                   "Qffffffffffff", // format: uint64_t, float
+                   "smmmmmmnnnnnn", 
+                   "F000000000000",
+                   "Qffffffffffff", 
                    AP_HAL::micros64(),
                    curr_pos.x,
                    curr_pos.y,
@@ -312,62 +264,45 @@ void AC_LQRControl::set_output()
                    x_ref.get(0, 8),
                    x_ref.get(0, 9));
   
-  // qref.to_euler(roll_ref, pitch_ref, yaw_ref);
-  // printf("eref :%.4f , %.4f , %.4f , %.4f\n", error[0], error[1], error[2], error[3]);
-  // printf("error:\n");
-  // x_error.printmat();
-  // K.printmat();
+
   out = u_ref.transpose() + K * x_error.transpose();
-  // (K * x_error.transpose()).printmat();
-  // K.printmat();
-  // out.printmat();
+
   float rate_x = constrain_float(out.get(0, 0), -2.0f, 2.0f);
   _attitude_control._rate_target_ang_vel.x = rate_x;
-  // _attitude_control._rate_target_ang_vel.x = out.get(0, 0); 
 
   float rate_y = constrain_float(out.get(1, 0), -2.0f, 2.0f);
   _attitude_control._rate_target_ang_vel.y = rate_y;
-  // _attitude_control._rate_target_ang_vel.y = out.get(1, 0);
 
   float rate_z = constrain_float(out.get(2, 0), -2.0f, 2.0f);
   _attitude_control._rate_target_ang_vel.z = rate_z;
-  // _attitude_control._rate_target_ang_vel.z = out.get(2, 0);
 
 
 
-  // printf("wx: %.2f \n",out.get(0, 0));
-  // printf("wy: %.2f \n",out.get(1, 0));
-  // printf("wz: %.2f \n",out.get(2, 0));
-  // printf("throttle : %.2f \n",out.get(3, 0));
-  // out.printmat();
-  // float thr = out.get(3, 0)/ 8 - (5/4);
-  // thr = constrain_float(thr, -1.0f, 1.0f);
-  // printf("thr : %.4f \n", _motors.get_throttle_hover());
   float j = 9.8 / _motors.get_throttle_hover();
-  // _attitude_control.set_throttle_out((thr/16) - 1/8 , true, 2.0f);
   float thr = constrain_float(out.get(3, 0)/j, 0.0f, 1.0f);
   _attitude_control.set_throttle_out(thr, false, 2.0f);
   out << rate_x, rate_y, rate_z, thr;
 }
 
-void AC_LQRControl::set_refernce(double x, double y, double z)
+void AC_LQRControl::set_refernce(double x, double y, double z, double vx, double vy, double vz)
 {
   
   x_ref.set(0, 0, x);
   x_ref.set(0, 1, y);
   x_ref.set(0, 2, z);
-  
+  // printf(_enabled ? "enabled\n":"disabled\n");
   Quaternion q{};
-  q.from_euler(radians(0.0f), radians(0.0f), radians(0.0f));
+  q.from_euler(radians(0.0f), radians(0.0f), radians(30.0f));
   
   x_ref.set(0, 3 , q[0]);
   x_ref.set(0, 4 , q[1]);
   x_ref.set(0, 5 , q[2]);
   x_ref.set(0, 6 , q[3]);
-
-  x_ref.set(0, 7, 0);
-  x_ref.set(0, 8, 0);
-  x_ref.set(0, 9, 0);
+  x_ref.set(0, 7, constrain_float(1/2.0f * (x - _inav.get_position().x / 100.0f), -7.0f, 7.0f));
+  x_ref.set(0, 8, constrain_float(1/2.0f * (y - _inav.get_position().y / 100.0f), -7.0f, 7.0f));
+  // x_ref.set(0, 7, (x - _inav.get_position().x / 100.0f) > 0 ? 1/1.5:-1/1.5 * sqrtf(fabs((x - _inav.get_position().x / 100.0f))));
+  // x_ref.set(0, 8, (y - _inav.get_position().y / 100.0f) > 0 ? 1/1.5:-1/1.5 * sqrtf(fabs((y - _inav.get_position().y / 100.0f))));
+  x_ref.set(0, 9, vz);
 
   u_ref.set(0, 0, 0);
   u_ref.set(0, 1, 0);

@@ -713,6 +713,13 @@ const AP_Param::Info Copter::var_info[] = {
     GOBJECT(precland, "PLND_", AC_PrecLand),
 #endif
 
+// #if LQR == ENABLED
+//     // @Group: LQR_
+//     // @Path: ../libraries/AC_AttitudeControl/AC_LQRControl.cpp
+//     GOBJECT(lqr_control, "LQR_", AC_LQRControl),
+// #endif
+
+
 #if RPM_ENABLED == ENABLED
     // @Group: RPM
     // @Path: ../libraries/AP_RPM/AP_RPM.cpp
