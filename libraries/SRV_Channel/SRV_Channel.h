@@ -168,6 +168,7 @@ public:
         k_min                   = 134,  // always outputs SERVOn_MIN
         k_trim                  = 135,  // always outputs SERVOn_TRIM
         k_max                   = 136,  // always outputs SERVOn_MAX
+        k_mast_rotation         = 137,
         k_nr_aux_servo_functions         ///< This must be the last enum value (only add new values _before_ this one)
     } Aux_servo_function_t;
 
@@ -516,6 +517,9 @@ public:
 
     static void zero_rc_outputs();
 
+    // initialize before any call to push
+    static void init();
+
 private:
 
     static bool disabled_passthrough;
@@ -573,6 +577,7 @@ private:
 
     AP_Int8 auto_trim;
     AP_Int16 default_rate;
+    AP_Int8 dshot_rate;
 
     // return true if passthrough is disabled
     static bool passthrough_disabled(void) {
