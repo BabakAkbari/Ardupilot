@@ -451,7 +451,7 @@ void ModeGuided::pos_control_run()
     set_land_complete(false);
     set_throttle_takeoff();
     // lqr_control->set_refernce(10 * sinf(2* 3.14 * millis() / 100000), 10 * cosf(2 * 3.14 * millis() / 100000), 20,0, 0, 0);
-    lqr_control->set_refernce(5, -5 ,20, 0, 0, 0);
+    lqr_control->set_refernce(10, 10 ,20, 0, 0, 0);
     track_update_time_ms = millis();
     uint32_t tnow = millis();
     if  (tnow - linear_update_time_ms > 100)
