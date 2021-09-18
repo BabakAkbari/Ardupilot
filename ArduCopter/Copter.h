@@ -67,11 +67,8 @@
 #include <AP_Parachute/AP_Parachute.h>
 #include <AC_Sprayer/AC_Sprayer.h>
 #include <AP_ADSB/AP_ADSB.h>
-<<<<<<< HEAD
 #include <AC_AttitudeControl/AC_LQRControl.h> 
-=======
 #include <AP_Proximity/AP_Proximity.h>
->>>>>>> b5ebf9022c8f55547132b00b21b6d14adf427110
 
 // Configuration
 #include "defines.h"

@@ -69,7 +69,7 @@ public:
 
     // This represents the angular velocity in radians per second in the body frame, used in the angular
     // velocity controller.
-    Vector3f            _rate_target_ang_vel;
+    Vector3f            _ang_vel_body;
 
     // pid accessors
     AC_P& get_angle_roll_p() { return _p_angle_roll; }
@@ -425,13 +425,8 @@ protected:
     // the target attitude frame.
     Vector3f            _ang_vel_target;
 
-<<<<<<< HEAD
 
-=======
-    // This represents the angular velocity in radians per second in the body frame, used in the angular
-    // velocity controller.
-    Vector3f            _ang_vel_body;
->>>>>>> b5ebf9022c8f55547132b00b21b6d14adf427110
+
 
     // This is the the angular velocity in radians per second in the body frame, added to the output angular
     // attitude controller by the System Identification Mode.

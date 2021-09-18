@@ -447,12 +447,11 @@ void ModeGuided::pos_control_run()
 
     // set motors to full range
 
-<<<<<<< HEAD
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
     set_land_complete(false);
     set_throttle_takeoff();
     // lqr_control->set_refernce(10 * sinf(2* 3.14 * millis() / 100000), 10 * cosf(2 * 3.14 * millis() / 100000), 20,0, 0, 0);
-    lqr_control->set_refernce(10,10,30, 0, 0, 0);
+    lqr_control->set_refernce(5, -5 ,20, 0, 0, 0);
     track_update_time_ms = millis();
     uint32_t tnow = millis();
     if  (tnow - linear_update_time_ms > 100)
@@ -480,19 +479,6 @@ void ModeGuided::pos_control_run()
     //     // roll, pitch from waypoint controller, yaw heading from GCS or auto_heading()
     //     attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
     // }
-=======
-    // call attitude controller
-    if (auto_yaw.mode() == AUTO_YAW_HOLD) {
-        // roll & pitch from waypoint controller, yaw rate from pilot
-        attitude_control->input_thrust_vector_rate_heading(wp_nav->get_thrust_vector(), target_yaw_rate);
-    } else if (auto_yaw.mode() == AUTO_YAW_RATE) {
-        // roll & pitch from waypoint controller, yaw rate from mavlink command or mission item
-        attitude_control->input_thrust_vector_rate_heading(wp_nav->get_thrust_vector(), auto_yaw.rate_cds());
-    } else {
-        // roll, pitch from waypoint controller, yaw heading from GCS or auto_heading()
-        attitude_control->input_thrust_vector_heading(wp_nav->get_thrust_vector(), auto_yaw.yaw());
-    }
->>>>>>> b5ebf9022c8f55547132b00b21b6d14adf427110
 }
 
 // guided_vel_control_run - runs the guided velocity controller

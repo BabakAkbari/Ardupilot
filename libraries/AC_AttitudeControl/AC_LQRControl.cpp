@@ -230,7 +230,7 @@ void AC_LQRControl::set_output()
       _attitude_quat[0], _attitude_quat[1], _attitude_quat[2], _attitude_quat[3],
       curr_vel.x, curr_vel.y, curr_vel.z;
 
-  x.printmat();
+  // x.printmat();
   x_error = x - x_ref;
   x_error.set(0, 0, x_ref.get(0, 0) - x.get(0, 0));
   x_error.set(0, 1, x_ref.get(0, 1) - x.get(0, 1));
@@ -268,13 +268,13 @@ void AC_LQRControl::set_output()
   out = u_ref.transpose() + K * x_error.transpose();
 
   float rate_x = constrain_float(out.get(0, 0), -2.0f, 2.0f);
-  _attitude_control._rate_target_ang_vel.x = rate_x;
+  _attitude_control._ang_vel_body.x = rate_x;
 
   float rate_y = constrain_float(out.get(1, 0), -2.0f, 2.0f);
-  _attitude_control._rate_target_ang_vel.y = rate_y;
+  _attitude_control._ang_vel_body.y = rate_y;
 
   float rate_z = constrain_float(out.get(2, 0), -2.0f, 2.0f);
-  _attitude_control._rate_target_ang_vel.z = rate_z;
+  _attitude_control._ang_vel_body.z = rate_z;
 
 
 
@@ -292,7 +292,7 @@ void AC_LQRControl::set_refernce(double x, double y, double z, double vx, double
   x_ref.set(0, 2, z);
   // printf(_enabled ? "enabled\n":"disabled\n");
   Quaternion q{};
-  q.from_euler(radians(0.0f), radians(0.0f), radians(30.0f));
+  q.from_euler(radians(0.0f), radians(0.0f), radians(90.0f));
   
   x_ref.set(0, 3 , q[0]);
   x_ref.set(0, 4 , q[1]);
